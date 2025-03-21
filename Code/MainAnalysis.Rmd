@@ -1,0 +1,42 @@
+---
+title: "Main Analysis"
+author: "Group 3"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Data Manipulation
+```{r}
+
+```
+
+## Exploratory Analysis
+```{r}
+
+```
+
+
+## Modelling
+```{r}
+
+```
+
+
+## Diagnostics
+```{r}
+
+```
+
+## Results and Interpretation
+```{r}
+
+```
+
+## Visualization
+```{r}
+
+```
+
