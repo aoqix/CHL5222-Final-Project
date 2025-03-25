@@ -31,7 +31,7 @@ library(ggplot2)
 ## Data Inspection and Manipulation 
 ```{r}
 # Load data
-nursebp <- read.csv(here("nursebp.csv"), header = TRUE)
+nursebp <- read.csv(here("Data/nursebp.csv"), header = TRUE)
 
 # Check structure
 str(nursebp)
@@ -51,7 +51,9 @@ nursebp <- nursebp %>%
     FH123 = as.factor(FH123),
     PHASE = as.factor(PHASE),
     POSTURE = as.factor(POSTURE),
-    SNUM = as.factor(SNUM)
+    SNUM = as.factor(SNUM),
+    STR = as.factor(STR),
+    HAP = as.factor(HAP)
   )
 ```
 
@@ -88,7 +90,7 @@ Correlation among variables
 ```{r}
 # DIA should be correlated with SYS, and it is with moderate correlation. The other variables seem no obvious correlation.
 nursebp %>% 
-  select(AGE, SYS, DIA, STR, HRT, MNACT5, TIR, HAP, time) %>% 
+  select(AGE, SYS, DIA, HRT, time) %>% 
   cor(use = "complete.obs")
 ```
 
@@ -126,6 +128,7 @@ anova(model0, model1)
 # Based on likelihood ratio test, we should not remove DIA
 # Just a test for model comparison
 ```
+
 ```{r}
 # Center and scale time
 nursebp$time_c <- scale(nursebp$timepass, center = TRUE, scale = TRUE)
@@ -137,33 +140,39 @@ summary(model0)
 model1 <- lmer(SYS ~ AGE + DIA + FH123 + HAP + HRT + MNACT5 + STR + TIR + DAY + PHASE + POSTURE + time_c + (1|SNUM), data = nursebp)
 summary(model1)
 ```
+
 ```{r}
 #Random intercept and covariance pattern model
 nursebp_lme <- na.omit(nursebp)
+
 #AR1 error
 nursebp_lme$time_c <- as.integer(rank(nursebp_lme$time_c))
 fit1 <- lme(SYS ~ AGE + DIA + FH123 + HAP + HRT + MNACT5 + STR + TIR + DAY + PHASE + POSTURE + time_c,random = ~time_c | SNUM,
             correlation = corAR1(form = ~time_c| SNUM),
             data = nursebp_lme)
 ```
+
 ```{r}
 #exponential error
 fit2 <- lme(SYS ~ AGE + DIA + FH123 + HAP + HRT + MNACT5 + STR + TIR + DAY + PHASE + POSTURE + time_c,random = ~time_c | SNUM,
             corr=corExp(form = ~time_c|SNUM),
             data = nursebp_lme)
 ```
+
 ```{r}
 #heteroskedasticity error cross time
 fit3 <- lme(SYS ~ AGE + DIA + FH123 + HAP + HRT + MNACT5 + STR + TIR + DAY + PHASE + POSTURE + time_c,random = ~time_c | SNUM,
             weights=varIdent(form = ~ 1|time_c), 
             data = nursebp_lme)
 ```
+
 ```{r}
 #heteroskedasticity error cross genetic factor
 fit4 <- lme(SYS ~ AGE + DIA + FH123 + HAP + HRT + MNACT5 + STR + TIR + DAY + PHASE + POSTURE + time_c,random = ~time_c | SNUM,
             weights=varIdent(form = ~ 1|FH123), 
             data = nursebp_lme)
 ```
+
 ```{r}
 # Create a data frame to store the model comparison metrics
 model_comparison <- data.frame(
