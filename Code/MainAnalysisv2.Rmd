@@ -31,7 +31,7 @@ library(ggplot2)
 ## Data Inspection and Manipulation 
 ```{r}
 # Load data
-nursebp <- read.csv(here("Data/nursebp.csv"), header = TRUE)
+nursebp <- read.csv(here("nursebp.csv"), header = TRUE)
 
 # Check structure
 str(nursebp)
@@ -117,28 +117,27 @@ vif(fixed_model)
 ## high multicollinearity among time and time^2, could consider centering
 ```
 
-1. Include all variables
-```{r}
-model0 <- lmer(SYS ~ AGE + DIA + FH123 + HAP + HRT + MNACT5 + STR + TIR + DAY + PHASE + POSTURE + time + (1 + time | SNUM), data = nursebp)
-```
-2. Remove DIA
-```{r}
-model1 <- lmer(SYS ~ AGE + FH123 + HAP + HRT + MNACT5 + STR + TIR + DAY + PHASE + POSTURE + time + (1 + time | SNUM), data = nursebp)
-anova(model0, model1)
-# Based on likelihood ratio test, we should not remove DIA
-# Just a test for model comparison
-```
-
+1. Random intercept,iInclude all variables
 ```{r}
 # Center and scale time
-nursebp$time_c <- scale(nursebp$timepass, center = TRUE, scale = TRUE)
-model0 <- lmer(SYS ~ AGE + DIA + FH123 + HAP + HRT + MNACT5 + STR + TIR + DAY + PHASE + POSTURE + time_c + (1+ time_c|SNUM), data = nursebp)
+nursebp$time_c <- scale(nursebp$time, center = TRUE, scale = TRUE)
+# Linear mixed model: random intercept model
+model0 <- lmer(SYS ~ AGE + DIA + FH123 + HAP + HRT + MNACT5 + STR + TIR + DAY + PHASE + POSTURE + time_c + (time_c)^2 + (1|SNUM), data = nursebp)
 summary(model0)
-```
 
+```
+2. Random Intercept and slope model
 ```{r}
-model1 <- lmer(SYS ~ AGE + DIA + FH123 + HAP + HRT + MNACT5 + STR + TIR + DAY + PHASE + POSTURE + time_c + (1|SNUM), data = nursebp)
+# Linear mixed model: random intercept and slope 
+model1 <- lmer(SYS ~ AGE + DIA + FH123 + HAP + HRT + MNACT5 + STR + TIR + DAY + PHASE + POSTURE + time_c + (time_c)^2 + (1+ time_c|SNUM), data = nursebp)
 summary(model1)
+```
+3. Remove DIA
+```{r}
+model3 <- lmer(SYS ~ AGE + FH123 + HAP + HRT + MNACT5 + STR + TIR + DAY + PHASE + POSTURE + time_c + (time_c)^2 + (1 + time_c | SNUM), data = nursebp)
+anova(model0, model3)
+# Based on likelihood ratio test, we should not remove DIA
+# Just a test for model comparison
 ```
 
 ```{r}
@@ -147,28 +146,28 @@ nursebp_lme <- na.omit(nursebp)
 
 #AR1 error
 nursebp_lme$time_c <- as.integer(rank(nursebp_lme$time_c))
-fit1 <- lme(SYS ~ AGE + DIA + FH123 + HAP + HRT + MNACT5 + STR + TIR + DAY + PHASE + POSTURE + time_c,random = ~time_c | SNUM,
+fit1 <- lme(SYS ~ AGE + DIA + FH123 + HAP + HRT + MNACT5 + STR + TIR + DAY + PHASE + POSTURE + time_c + (time_c)^2,random = ~time_c | SNUM,
             correlation = corAR1(form = ~time_c| SNUM),
             data = nursebp_lme)
 ```
 
 ```{r}
 #exponential error
-fit2 <- lme(SYS ~ AGE + DIA + FH123 + HAP + HRT + MNACT5 + STR + TIR + DAY + PHASE + POSTURE + time_c,random = ~time_c | SNUM,
+fit2 <- lme(SYS ~ AGE + DIA + FH123 + HAP + HRT + MNACT5 + STR + TIR + DAY + PHASE + POSTURE + time_c + (time_c)^2,random = ~time_c | SNUM,
             corr=corExp(form = ~time_c|SNUM),
             data = nursebp_lme)
 ```
 
 ```{r}
 #heteroskedasticity error cross time
-fit3 <- lme(SYS ~ AGE + DIA + FH123 + HAP + HRT + MNACT5 + STR + TIR + DAY + PHASE + POSTURE + time_c,random = ~time_c | SNUM,
+fit3 <- lme(SYS ~ AGE + DIA + FH123 + HAP + HRT + MNACT5 + STR + TIR + DAY + PHASE + POSTURE + time_c + (time_c)^2 ,random = ~time_c | SNUM,
             weights=varIdent(form = ~ 1|time_c), 
             data = nursebp_lme)
 ```
 
 ```{r}
 #heteroskedasticity error cross genetic factor
-fit4 <- lme(SYS ~ AGE + DIA + FH123 + HAP + HRT + MNACT5 + STR + TIR + DAY + PHASE + POSTURE + time_c,random = ~time_c | SNUM,
+fit4 <- lme(SYS ~ AGE + DIA + FH123 + HAP + HRT + MNACT5 + STR + TIR + DAY + PHASE + POSTURE + time_c + (time_c)^2,random = ~time_c | SNUM,
             weights=varIdent(form = ~ 1|FH123), 
             data = nursebp_lme)
 ```
