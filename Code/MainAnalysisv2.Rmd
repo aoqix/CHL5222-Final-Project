@@ -196,8 +196,38 @@ kable(model_comparison, digits = 2, caption = "Model Comparison by Information C
 
 ## Diagnostics
 ```{r}
+plot(model0)
+plot(model1)
 
+# More detailed residual diagnostics
+res0 <- residuals(model0)
+res1 <- residuals(model1)
+
+# QQ plots
+qqnorm(res0); qqline(res0)
+qqnorm(res1); qqline(res1)
+
+# Residuals vs. fitted
+plot(fitted(model0), res0)
+abline(h=0, lty=2)
+plot(fitted(model1), res1)
+abline(h=0, lty=2)
+
+#compare 2 models
+anova(model0, model1)
+AIC(model0, model1)
+BIC(model0, model1)
 ```
+```{r}
+# Extract random effects
+re0 <- ranef(model0)
+re1 <- ranef(model1)
+
+# Plot random effects
+qqnorm(unlist(re0$SNUM))
+qqnorm(unlist(re1$SNUM))
+```
+
 
 ## Results and Interpretation
 ```{r}
