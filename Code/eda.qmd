@@ -1,0 +1,488 @@
+---
+title: "EDA"
+format: html
+editor: visual
+---
+
+```{r}
+#| message: false
+library(tidyverse)    
+library(zoo)           
+library(ggplot2)       
+library(gridExtra)     
+library(scales)       
+library(lme4)         
+library(geepack)      
+library(viridis)      
+```
+
+# input data
+
+```{r}
+
+
+data <- read.csv("nursebp.csv", header = TRUE)
+
+data$SNUM <- as.factor(data$SNUM)
+data$PHASE <- as.factor(data$PHASE)
+data$DAY <- as.factor(data$DAY)
+data$POSTURE <- as.factor(data$POSTURE)
+data$FH123 <- as.factor(data$FH123)
+
+data <- data %>%
+  mutate(
+    # in hours
+    hour_of_day = floor(time / 60),
+    #  20-minute 
+    time_20 = floor(time / 20) * 20/60,
+    time2 = time^2
+  )
+```
+
+# Number of unique subjects
+
+```{r}
+n_subjects <- length(unique(data$SNUM))
+n_subjects #有几个护士参与
+```
+
+# Average observations per subject
+
+```{r}
+nrow(data)/n_subjects
+#每个人平均有几个观测值（给自己测了几次）
+```
+
+# Missing values by column
+
+```{r}
+missing_values <- sapply(data, function(x) sum(is.na(x)))
+
+print(missing_values[missing_values > 0])
+```
+
+# Summary statistics
+
+```{r}
+num_vars <- c("SYS", "DIA", "HRT", "MNACT5", "STR", "HAP", "TIR", "AGE")
+summary_stats <- data %>%
+  select(all_of(num_vars)) %>%
+  summary()
+print(summary_stats)
+```
+
+```{r}
+vars <- c("PHASE", "DAY", "POSTURE", "FH123")
+for (var in vars) {
+  cat(var)
+  print(table(data[[var]]))
+  cat("Percentages")
+  print(round(prop.table(table(data[[var]])) * 100, 1))
+}
+
+```
+
+#box plot
+
+```{r}
+
+par(mfrow = c(2, 2))
+hist(data$SYS, main = "Distribution of Systolic BP", xlab = "SYS", col = "lightblue")
+hist(data$DIA, main = "Distribution of Diastolic BP", xlab = "DIA", col = "lightgreen")
+hist(data$HRT, main = "Distribution of Heart Rate", xlab = "HRT", col = "lightpink")
+hist(data$MNACT5, main = "Distribution of Activity Level", xlab = "MNACT5", col = "lightyellow")
+par(mfrow = c(1, 1))
+```
+
+```{r}
+bp_by_day <- ggplot(data, aes(x = DAY, y = SYS, fill = DAY)) +
+  geom_boxplot() +
+  labs(title = "Systolic BP by Day Type", 
+       x = "Day Type", 
+       y = "Systolic Blood Pressure") +
+  scale_fill_manual(values = c("skyblue", "salmon"),
+                    labels = c("Non-workday", "Workday")) +
+  theme_minimal()
+
+print(bp_by_day)
+```
+
+```{r}
+
+bp_by_fh <- ggplot(data, aes(x = FH123, y = SYS, fill = FH123)) +
+  geom_boxplot() +
+  labs(title = "Systolic BP by Family History", 
+       x = "Family History", 
+       y = "Systolic Blood Pressure") +
+  scale_fill_manual(values = c("lightblue", "lightgreen", "salmon"),
+                   labels = c("No hypertensive parents", 
+                              "One hypertensive parent", 
+                              "Both parents hypertensive")) +
+  theme_minimal()
+
+
+
+print(bp_by_fh)
+```
+
+```{r}
+
+bp_by_str <- ggplot(data, aes(x = STR, y = SYS, fill = as.factor(STR))) +
+  geom_boxplot() +
+  labs(title = "Systolic BP by Family History", 
+       x = "Family History", 
+       y = "Systolic Blood Pressure") +
+  scale_fill_manual(values = c("lightblue", "lightgreen", "salmon","blue","yellow"),
+                   labels = c("1","2","3","4","5")) +
+  theme_minimal()
+
+
+
+print(bp_by_str)
+```
+
+# Correlation
+
+```{r}
+
+
+corr_vars <- c("SYS", "DIA", "HRT", "MNACT5", "STR", "HAP", "TIR", "AGE")
+correlation_matrix <- cor(data[, corr_vars], use = "pairwise.complete.obs")
+print(correlation_matrix[1,])
+
+corrplot::corrplot(correlation_matrix, 
+                   method = "color", 
+                   type = "upper", 
+                   order = "hclust",
+                   tl.col = "black", 
+                   tl.srt = 45,
+                   addCoef.col = "black",
+                   number.cex = 0.7)
+```
+
+#bars
+
+```{r}
+
+fh_summary <- data %>%
+  group_by(FH123) %>%
+  summarise(
+    mean_SYS = mean(SYS, na.rm = TRUE),
+    sd_SYS = sd(SYS, na.rm = TRUE),
+    n = n(),
+    se_SYS = sd_SYS / sqrt(n)
+  )
+
+print(fh_summary)
+```
+
+```{r}
+subject_fh_data <- data %>%
+  group_by(SNUM, FH123) %>%
+  summarise(mean_SYS = mean(SYS, na.rm = TRUE)) %>%
+  ungroup()
+
+subject_fh_summary <- subject_fh_data %>%
+  group_by(FH123) %>%
+  summarise(
+    mean_SYS = mean(mean_SYS, na.rm = TRUE),
+    sd_SYS = sd(mean_SYS, na.rm = TRUE),#???? 为什么不行
+    n = n(),
+    se_SYS = sd_SYS / sqrt(n)
+  )
+print(subject_fh_summary)
+```
+
+```{r}
+
+fh_plot <- ggplot(subject_fh_summary, aes(x = FH123, y = mean_SYS, fill = FH123)) +
+  geom_bar(stat = "identity", position = position_dodge(), width = 0.7) +
+  geom_errorbar(aes(ymin = mean_SYS, ymax = mean_SYS),
+                width = 0.25, position = position_dodge(0.7)) +
+  labs(title = "Mean Systolic BP by Family History (Subject-Level)",
+       x = "Family History of Hypertension",
+       y = "Mean Systolic Blood Pressure (mmHg)") +
+  scale_x_discrete(labels = c("No history", "One parent", "Both parents")) +
+  scale_fill_manual(values = c("lightblue", "lightgreen", "salmon"),
+                    name = "Family History",
+                    labels = c("No hypertensive parents", 
+                               "One hypertensive parent", 
+                               "Both parents hypertensive")) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 0))
+print(fh_plot)
+```
+
+#Systolic BP by Stress Level
+```{r}
+
+stress_summary <- data %>%
+  group_by(STR) %>%
+  summarise(
+    mean_SYS = mean(SYS, na.rm = TRUE),
+    sd_SYS = sd(SYS, na.rm = TRUE),
+    n = n(),
+    se_SYS = sd_SYS / sqrt(n)
+  )
+
+print(stress_summary)
+```
+
+#stree level plot (no difference)
+```{r}
+
+stress_plot <- ggplot(stress_summary, aes(x = factor(STR), y = mean_SYS)) +
+  geom_bar(stat = "identity", fill = "steelblue", width = 0.7) +
+  geom_errorbar(aes(ymin = mean_SYS - se_SYS, ymax = mean_SYS + se_SYS),
+                width = 0.25) +
+  labs(title = "Mean Systolic BP by Stress Level",
+       x = "Stress Level",
+       y = "Mean Systolic Blood Pressure (mmHg)") +
+  theme_minimal()
+print(stress_plot)
+```
+
+
+#Systolic BP by workday
+
+```{r}
+
+workday_summary <- data %>%
+  group_by(DAY) %>%
+  summarise(
+    mean_SYS = mean(SYS, na.rm = TRUE),
+    sd_SYS = sd(SYS, na.rm = TRUE),
+    n = n(),
+    se_SYS = sd_SYS / sqrt(n)
+  )
+print("Systolic BP by Working Status:")
+print(workday_summary)
+```
+#small difference in workday
+
+```{r}
+workday_plot <- ggplot(workday_summary, aes(x = DAY, y = mean_SYS, fill = DAY)) +
+  geom_bar(stat = "identity", position = position_dodge(), width = 0.7) +
+  geom_errorbar(aes(ymin = mean_SYS - se_SYS, ymax = mean_SYS + se_SYS),
+                width = 0.25, position = position_dodge(0.7)) +
+  labs(title = "Mean Systolic BP by Working Status",
+       x = "Day Type",
+       y = "Mean Systolic Blood Pressure (mmHg)") +
+  scale_x_discrete(labels = c("Non-workday", "Workday")) +
+  scale_fill_manual(values = c("skyblue", "salmon"),
+                    name = "Day Type",
+                    labels = c("Non-workday", "Workday")) +
+  theme_minimal()
+print(workday_plot)
+```
+
+#Average change over the day
+
+```{r}
+hourly_summary <- data %>%
+  group_by(hour_of_day) %>%
+  summarise(
+    mean_SYS = mean(SYS, na.rm = TRUE),
+    sd_SYS = sd(SYS, na.rm = TRUE),
+    n = n(),
+    se_SYS = sd_SYS / sqrt(n)
+  ) %>%
+  filter(n >= 5) 
+print(hourly_summary)
+```
+
+```{r}
+
+
+time_plot <- ggplot(hourly_summary, aes(x = hour_of_day, y = mean_SYS)) +
+  geom_line(size = 1, color = "steelblue") +
+  geom_point(size = 3, color = "steelblue") +
+  geom_ribbon(aes(ymin = mean_SYS - se_SYS, ymax = mean_SYS + se_SYS),
+              alpha = 0.2, fill = "steelblue") +
+  labs(title = "Diurnal Pattern of Systolic BP",
+       x = "Hour of Day",
+       y = "Mean Systolic Blood Pressure (mmHg)") +
+  scale_x_continuous(breaks = seq(5, 23, 2)) +
+  theme_minimal()
+print(time_plot)
+
+
+```
+
+```{r}
+
+time20_summary <- data %>%
+  group_by(time_20) %>%
+  summarise(
+    mean_SYS = mean(SYS, na.rm = TRUE),
+    sd_SYS = sd(SYS, na.rm = TRUE),
+    n = n(),
+    se_SYS = sd_SYS / sqrt(n)
+  )
+
+
+time20_plot <- ggplot(time20_summary, aes(x = time_20, y = mean_SYS)) +
+  geom_line(size = 1, color = "darkblue") +
+  geom_ribbon(aes(ymin = mean_SYS - se_SYS, ymax = mean_SYS + se_SYS),
+              alpha = 0.2, fill = "steelblue") +
+  labs(title = "Systolic BP Throughout the Day (20-minute intervals)",
+       x = "Time (hours from midnight)",
+       y = "Mean Systolic Blood Pressure (mmHg)") +
+  theme_minimal()
+print(time20_plot)
+
+
+```
+
+#workday ggplot
+
+```{r}
+
+time_workday <- data %>%
+  group_by(hour_of_day, DAY) %>%
+  summarise(
+    mean_SYS = mean(SYS, na.rm = TRUE),
+    sd_SYS = sd(SYS, na.rm = TRUE),
+    n = n(),
+    se_SYS = sd_SYS / sqrt(n)
+  ) %>%
+  filter(n >= 5) 
+
+
+time_day_plot <- ggplot(time_workday, aes(x = hour_of_day, y = mean_SYS, color = DAY, group = DAY)) +
+  geom_line(size = 1) +
+  geom_point(size = 2) +
+  geom_ribbon(aes(ymin = mean_SYS - se_SYS, ymax = mean_SYS + se_SYS, fill = DAY),
+              alpha = 0.2, color = NA) +
+  labs(title = "Systolic BP by Time of Day and Working Status",
+       x = "Hour of Day",
+       y = "Mean Systolic Blood Pressure (mmHg)") +
+  scale_x_continuous(breaks = seq(5, 23, 2)) +
+  scale_color_manual(values = c("skyblue", "salmon"),
+                    name = "Day Type",
+                    labels = c("Non-workday", "Workday")) +
+  scale_fill_manual(values = c("skyblue", "salmon"),
+                    name = "Day Type",
+                    labels = c("Non-workday", "Workday")) +
+  theme_minimal()
+print(time_day_plot)
+```
+
+#Family history ggplot
+
+```{r}
+time_fh_summary <- data %>%
+  group_by(hour_of_day, FH123) %>%  
+  summarise(
+    mean_SYS = mean(SYS, na.rm = TRUE),
+    sd_SYS = sd(SYS, na.rm = TRUE),
+    n = n(),
+    se_SYS = sd_SYS / sqrt(n),
+    .groups = "drop"  
+  ) %>%
+  filter(n >= 5) 
+
+time_fh_plot <- ggplot(time_fh_summary, aes(x = hour_of_day, y = mean_SYS, color = FH123, group = FH123)) +
+  geom_line(size = 1) +
+  geom_point(size = 2) +
+  geom_ribbon(aes(ymin = mean_SYS - se_SYS, ymax = mean_SYS + se_SYS, fill = FH123),
+              alpha = 0.2, color = NA) +
+  labs(title = "Systolic BP by Time of Day and Family History",
+       x = "Hour of Day",
+       y = "Mean Systolic Blood Pressure (mmHg)") +
+  scale_x_continuous(breaks = seq(5, 23, 2)) +
+  scale_color_manual(values = c("royalblue", "forestgreen", "firebrick"),
+                    name = "Family History",
+                    labels = c("No hypertensive parents", 
+                               "One hypertensive parent", 
+                               "Both parents hypertensive")) +
+  scale_fill_manual(values = c("royalblue", "forestgreen", "firebrick"),
+                    name = "Family History",
+                    labels = c("No hypertensive parents", 
+                               "One hypertensive parent", 
+                               "Both parents hypertensive")) +
+  theme_minimal()
+
+print(time_fh_plot)
+```
+
+# Between-Subject vs. Within-Subject Variation
+
+```{r}
+
+subject_means <- data %>%
+  group_by(SNUM) %>%
+  summarise(mean_SYS = mean(SYS, na.rm = TRUE))
+
+overall_mean <- mean(subject_means$mean_SYS)
+between_subject_sd <- sd(subject_means$mean_SYS)
+
+cat("Between-subject variation:\n")
+cat("Overall mean SYS:", overall_mean, "\n")
+cat("SD of subject means:", between_subject_sd, "\n")
+
+subject_hist <- ggplot(subject_means, aes(x = mean_SYS)) +
+  geom_histogram(binwidth = 2, fill = "steelblue", color = "white") +
+  geom_vline(xintercept = overall_mean, color = "red", linetype = "dashed", size = 1) +
+  labs(title = "Distribution of Subject Mean Systolic BP",
+       x = "Mean Systolic BP (mmHg)",
+       y = "Number of Subjects") +
+  annotate("text", x = overall_mean + 5, y = 20, 
+           label = paste("Overall Mean =", round(overall_mean, 1), "mmHg"),
+           color = "red") +
+  theme_minimal()
+print(subject_hist)
+```
+
+```{r}
+
+
+me_model <- lmer(SYS ~ time + DAY + HRT + MNACT5 + POSTURE + FH123 + TIR + (1 | SNUM), 
+                data = data)
+print(summary(me_model))
+
+me_model2 <- lmer(SYS ~ time + time2 + DAY + HRT + MNACT5 + POSTURE + FH123 + TIR + (1 | SNUM), 
+                 data = data)
+print(summary(me_model2))
+```
+
+# table
+
+
+#summary table
+
+
+| Variable | Min | Max   | Mean  | Median |
+|----------|-----|-------|-------|--------|
+| SYS      | 75  | 200   | 118.2 | 117    |
+| DIA      | 40  | 120   | 71.4  | 71     |
+| HRT      | 35  | 144   | 80.0  | 80     |
+| MNACT5   | 0   | 359.4 | 190.4 | 207    |
+| STR      | 1   | 5     | 1.5   | 1      |
+| HAP      | 1   | 5     | 3.1   | 3      |
+| TIR      | 1   | 5     | 2.0   | 2      |
+| AGE      | 24  | 50    | 37.8  | 38     |
+
+# distribution table
+
+| Variable | Category         | Count | Percentage |
+|----------|------------------|-------|------------|
+| PHASE    | L (luteal)       | 4,836 | 50.5%      |
+|          | F (follicular)   | 4,737 | 49.5%      |
+| DAY      | W (workday)      | 5,457 | 57.0%      |
+|          | NW (non-workday) | 4,116 | 43.0%      |
+| POSTURE  | SIT              | 4,101 | 45.6%      |
+|          | STAND            | 4,255 | 47.3%      |
+|          | RECLINE          | 631   | 7.0%       |
+| FH123    | NO               | 5,298 | 55.3%      |
+|          | YES              | 3,633 | 38.0%      |
+|          | YESYES           | 642   | 6.7%       |
+
+
+#Family history table by nurse
+
+| Family History                     | Mean SYS | Count | SE   |
+|------------------------------------|----------|-------|------|
+| NO (no hypertensive parents)       | 117.6    | 112   | 0.79 |
+| YES (one hypertensive parent)      | 117.6    | 77    | 0.96 |
+| YESYES (both parents hypertensive) | 125.7    | 14    | 2.40 |
