@@ -13,7 +13,8 @@ library(gridExtra)
 library(scales)       
 library(lme4)         
 library(geepack)      
-library(viridis)      
+library(viridis)  
+library(here)
 ```
 
 # input data
@@ -21,7 +22,7 @@ library(viridis)
 ```{r}
 
 
-data <- read.csv("nursebp.csv", header = TRUE)
+data <- read.csv(here("Data/nursebp.csv"), header = TRUE)
 
 data$SNUM <- as.factor(data$SNUM)
 data$PHASE <- as.factor(data$PHASE)
@@ -214,6 +215,7 @@ print(fh_plot)
 ```
 
 #Systolic BP by Stress Level
+
 ```{r}
 
 stress_summary <- data %>%
@@ -229,6 +231,7 @@ print(stress_summary)
 ```
 
 #stree level plot (no difference)
+
 ```{r}
 
 stress_plot <- ggplot(stress_summary, aes(x = factor(STR), y = mean_SYS)) +
@@ -241,7 +244,6 @@ stress_plot <- ggplot(stress_summary, aes(x = factor(STR), y = mean_SYS)) +
   theme_minimal()
 print(stress_plot)
 ```
-
 
 #Systolic BP by workday
 
@@ -258,6 +260,7 @@ workday_summary <- data %>%
 print("Systolic BP by Working Status:")
 print(workday_summary)
 ```
+
 #small difference in workday
 
 ```{r}
@@ -417,9 +420,11 @@ subject_means <- data %>%
 overall_mean <- mean(subject_means$mean_SYS)
 between_subject_sd <- sd(subject_means$mean_SYS)
 
-cat("Between-subject variation:\n")
-cat("Overall mean SYS:", overall_mean, "\n")
-cat("SD of subject means:", between_subject_sd, "\n")
+#Between-subject variation
+#Overall mean SYS
+overall_mean
+#SD of subject means 
+between_subject_sd
 
 subject_hist <- ggplot(subject_means, aes(x = mean_SYS)) +
   geom_histogram(binwidth = 2, fill = "steelblue", color = "white") +
@@ -448,9 +453,7 @@ print(summary(me_model2))
 
 # table
 
-
 #summary table
-
 
 | Variable | Min | Max   | Mean  | Median |
 |----------|-----|-------|-------|--------|
@@ -477,7 +480,6 @@ print(summary(me_model2))
 | FH123    | NO               | 5,298 | 55.3%      |
 |          | YES              | 3,633 | 38.0%      |
 |          | YESYES           | 642   | 6.7%       |
-
 
 #Family history table by nurse
 
