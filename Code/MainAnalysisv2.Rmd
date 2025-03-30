@@ -143,14 +143,14 @@ summary(model1)
 ```
 3. Remove DIA (Due to high correlation)
 ```{r}
-model3 <- lmer(SYS ~ AGE + FH123 + HAP + HRT + MNACT5 + STR + TIR + DAY + PHASE + POSTURE + time_c + time_c2 + (1 + time_c | SNUM), data = nursebp)
+model2 <- lmer(SYS ~ AGE + FH123 + HAP + HRT + MNACT5 + STR + TIR + DAY + PHASE + POSTURE + time_c + time_c2 + (1 + time_c | SNUM), data = nursebp)
 
-summary(model3)
+summary(model2)
 ```
 
 ```{r}
 
-anova(model0, model3)
+anova(model0, model2)
 # Based on likelihood ratio test, we should not remove DIA
 # Just a test for model comparison
 ```
