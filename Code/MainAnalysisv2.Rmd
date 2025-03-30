@@ -121,20 +121,29 @@ vif(fixed_model)
 ```{r}
 # Center and scale time
 nursebp$time_c <- scale(nursebp$time, center = TRUE, scale = TRUE)
+nursebp$time_c2 <-(nursebp$time_c)^2
 # Linear mixed model: random intercept model
-model0 <- lmer(SYS ~ AGE + DIA + FH123 + HAP + HRT + MNACT5 + STR + TIR + DAY + PHASE + POSTURE + time_c + (time_c)^2 + (1|SNUM), data = nursebp)
+model0 <- lmer(SYS ~ AGE + DIA + FH123 + HAP + HRT + MNACT5 + STR + TIR + DAY + PHASE + POSTURE + time_c + time_c2 + (1|SNUM), data = nursebp)
 summary(model0)
-
+```
+```{r}
+###################DO NOT RUN THIS YET, FOR MULTICOLINEARITY ONLY################################################
+# Correlation matrix
+cor_matrix <- cor(nursebp[, c("HAP", "STR", "TIR")], use = "complete.obs")
+print(cor_matrix)
+# VIF calculation
+library(car)
+vif(model0)
 ```
 2. Random Intercept and slope model
 ```{r}
-# Linear mixed model: random intercept and slope 
-model1 <- lmer(SYS ~ AGE + DIA + FH123 + HAP + HRT + MNACT5 + STR + TIR + DAY + PHASE + POSTURE + time_c + (time_c)^2 + (1+ time_c|SNUM), data = nursebp)
+# Linear mixd model: random intercept and slope 
+model1 <- lmer(SYS ~ AGE + DIA + FH123 + HAP + HRT + MNACT5 + STR + TIR + DAY + PHASE + POSTURE + time_c + time_c2 + (1+ time_c|SNUM), data = nursebp)
 summary(model1)
 ```
 3. Remove DIA
 ```{r}
-model3 <- lmer(SYS ~ AGE + FH123 + HAP + HRT + MNACT5 + STR + TIR + DAY + PHASE + POSTURE + time_c + (time_c)^2 + (1 + time_c | SNUM), data = nursebp)
+model3 <- lmer(SYS ~ AGE + FH123 + HAP + HRT + MNACT5 + STR + TIR + DAY + PHASE + POSTURE + time_c + time_c2 + (1 + time_c | SNUM), data = nursebp)
 anova(model0, model3)
 # Based on likelihood ratio test, we should not remove DIA
 # Just a test for model comparison
@@ -146,7 +155,7 @@ nursebp_lme <- na.omit(nursebp)
 
 #AR1 error
 nursebp_lme$time_c <- as.integer(rank(nursebp_lme$time_c))
-fit1 <- lme(SYS ~ AGE + DIA + FH123 + HAP + HRT + MNACT5 + STR + TIR + DAY + PHASE + POSTURE + time_c + (time_c)^2,random = ~time_c | SNUM,
+fit1 <- lme(SYS ~ AGE + DIA + FH123 + HAP + HRT + MNACT5 + STR + TIR + DAY + PHASE + POSTURE + time_c + time_c2,random = ~time_c | SNUM,
             correlation = corAR1(form = ~time_c| SNUM),
             data = nursebp_lme)
 ```
@@ -160,14 +169,14 @@ fit2 <- lme(SYS ~ AGE + DIA + FH123 + HAP + HRT + MNACT5 + STR + TIR + DAY + PHA
 
 ```{r}
 #heteroskedasticity error cross time
-fit3 <- lme(SYS ~ AGE + DIA + FH123 + HAP + HRT + MNACT5 + STR + TIR + DAY + PHASE + POSTURE + time_c + (time_c)^2 ,random = ~time_c | SNUM,
+fit3 <- lme(SYS ~ AGE + DIA + FH123 + HAP + HRT + MNACT5 + STR + TIR + DAY + PHASE + POSTURE + time_c + time_c2 ,random = ~time_c | SNUM,
             weights=varIdent(form = ~ 1|time_c), 
             data = nursebp_lme)
 ```
 
 ```{r}
 #heteroskedasticity error cross genetic factor
-fit4 <- lme(SYS ~ AGE + DIA + FH123 + HAP + HRT + MNACT5 + STR + TIR + DAY + PHASE + POSTURE + time_c + (time_c)^2,random = ~time_c | SNUM,
+fit4 <- lme(SYS ~ AGE + DIA + FH123 + HAP + HRT + MNACT5 + STR + TIR + DAY + PHASE + POSTURE + time_c + time_c2,random = ~time_c | SNUM,
             weights=varIdent(form = ~ 1|FH123), 
             data = nursebp_lme)
 ```
@@ -227,7 +236,6 @@ re1 <- ranef(model1)
 qqnorm(unlist(re0$SNUM))
 qqnorm(unlist(re1$SNUM))
 ```
-
 
 ## Results and Interpretation
 ```{r}
