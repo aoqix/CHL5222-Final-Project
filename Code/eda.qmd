@@ -83,7 +83,7 @@ for (var in vars) {
 
 ```
 
-#box plot
+# box plot
 
 ```{r}
 
@@ -161,7 +161,7 @@ corrplot::corrplot(correlation_matrix,
                    number.cex = 0.7)
 ```
 
-#bars
+# bars
 
 ```{r}
 
@@ -214,7 +214,7 @@ fh_plot <- ggplot(subject_fh_summary, aes(x = FH123, y = mean_SYS, fill = FH123)
 print(fh_plot)
 ```
 
-#Systolic BP by Stress Level
+# Systolic BP by Stress Level
 
 ```{r}
 
@@ -230,7 +230,7 @@ stress_summary <- data %>%
 print(stress_summary)
 ```
 
-#stree level plot (no difference)
+# stress level plot (no difference)
 
 ```{r}
 
@@ -245,7 +245,7 @@ stress_plot <- ggplot(stress_summary, aes(x = factor(STR), y = mean_SYS)) +
 print(stress_plot)
 ```
 
-#Systolic BP by workday
+# Systolic BP by workday
 
 ```{r}
 
@@ -261,7 +261,7 @@ print("Systolic BP by Working Status:")
 print(workday_summary)
 ```
 
-#small difference in workday
+# small difference in workday
 
 ```{r}
 workday_plot <- ggplot(workday_summary, aes(x = DAY, y = mean_SYS, fill = DAY)) +
@@ -279,7 +279,7 @@ workday_plot <- ggplot(workday_summary, aes(x = DAY, y = mean_SYS, fill = DAY)) 
 print(workday_plot)
 ```
 
-#Average change over the day
+# Average change over the day
 
 ```{r}
 hourly_summary <- data %>%
@@ -451,9 +451,9 @@ me_model2 <- lmer(SYS ~ time + time2 + DAY + HRT + MNACT5 + POSTURE + FH123 + TI
 print(summary(me_model2))
 ```
 
-# table
+# Tables
 
-#summary table
+# summary table
 
 | Variable | Min | Max   | Mean  | Median |
 |----------|-----|-------|-------|--------|
@@ -481,7 +481,7 @@ print(summary(me_model2))
 |          | YES              | 3,633 | 38.0%      |
 |          | YESYES           | 642   | 6.7%       |
 
-#Family history table by nurse
+# Family history table by nurse
 
 | Family History                     | Mean SYS | Count | SE   |
 |------------------------------------|----------|-------|------|
@@ -552,7 +552,7 @@ print(summary(me_model2))
 \
 
 \
-\# Randome effect model 1 vs model 3 Random Effects Components
+\# Random effect model 1 vs model 3 Random Effects Components
 
 ## Table 2: Random Effects Components
 

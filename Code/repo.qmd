@@ -1,0 +1,142 @@
+---
+title: "repo"
+format: html
+editor: visual
+---
+
+```{r}
+library(lme4)        # for linear mixed-effects models
+library(lmerTest)    # for p-values in mixed models
+library(ggplot2)    
+library(here)       
+```
+
+```{r}
+# 1. Data Loading and Preparation
+nursebp <- read.csv(here("Data/nursebp.csv"))
+# Convert appropriate columns to factors
+nursebp$SNUM   <- factor(nursebp$SNUM)
+nursebp$DAY    <- factor(nursebp$DAY)      # 'W' or 'NW'
+nursebp$PHASE  <- factor(nursebp$PHASE)    # 'F' or 'L'
+nursebp$POSTURE<- factor(nursebp$POSTURE)  # 'SIT', 'STAND', 'RECLINE'
+nursebp$FH123  <- factor(nursebp$FH123, levels=c("NO","YES","YESYES"))
+nursebp$STR    <- factor(nursebp$STR, levels=c(1,2,3,4,5))
+nursebp$HAP    <- factor(nursebp$HAP, levels=c(1,2,3,4,5))
+nursebp$TIR    <- factor(nursebp$TIR, levels=c(1,2,3,4,5))
+
+```
+
+```{r}
+nursebp_complete <- na.omit(nursebp)  
+# after remove NA, we still have 7896 rows, which is sufficent for analysis
+```
+# Descriptive statistics
+```{r}
+
+summary(nursebp_complete$SYS)
+# (This will output min, 1Q, median, mean, etc., as seen in the report)
+table(nursebp_complete$FH123) 
+table(nursebp_complete$DAY)
+# etc., to see distribution of categorical variables
+```
+# Create time variables (center and quadratic term)
+```{r}
+
+nursebp_complete$time_c  <- scale(nursebp_complete$time, center=TRUE, scale=TRUE)
+nursebp_complete$time_c2 <- (nursebp_complete$time_c)^2
+```
+
+# Model 1: with DBP, random intercept and slope for time
+```{r}
+
+model1 <- lmer(SYS ~ AGE + DIA + FH123 + HAP + HRT + MNACT5 + STR + TIR + 
+                DAY + PHASE + POSTURE + time_c + time_c2 + 
+                (1 + time_c | SNUM),
+               data = nursebp_complete, REML=TRUE)
+summary(model1)
+
+```
+# Model 2: without DBP
+```{r}
+
+model2 <- lmer(SYS ~ AGE + FH123 + HAP + HRT + MNACT5 + STR + TIR + 
+                DAY + PHASE + POSTURE + time_c + time_c2 + 
+                (1 + time_c | SNUM),
+               data = nursebp_complete, REML=TRUE)
+summary(model2)
+```
+# Compare Model 1 and Model 2 fit
+```{r}
+AIC(model1, model2)
+
+```
+We expect model1 (with DIA) to have lower AIC (better fit) but model2 to reveal more effects.
+
+
+
+# Compare with model 1 (random intercept model)
+```{r}
+
+model0 <- lmer(SYS ~ AGE + FH123 + HAP + HRT + MNACT5 + STR + TIR + 
+                DAY + PHASE + POSTURE + time_c + time_c2 + (1|SNUM), 
+               data=nursebp_complete, REML=TRUE)
+AIC(model0, model1) 
+anova(model0, model1) # likelihood ratio test for random slope significance
+```
+# Diagnostic plots for Model 2
+```{r}
+
+resid2   <- residuals(model2)
+fitted2  <- fitted(model2)
+
+# Residuals vs fitted
+plot(fitted2, resid2, xlab="Fitted SBP", ylab="Residuals",
+     main="Residuals vs Fitted (Model 2)")
+abline(h=0, col="red", lty=2)
+
+# Normal Q-Q plot of residuals
+qqnorm(resid2, main="Q-Q Plot of Residuals (Model 2)")
+qqline(resid2, col="red", lty=2)
+
+# We can also examine random effects
+ranef(model2)$SNUM[1:5, ]  # show first 5 nurses' random intercept and slope
+```
+
+
+# Diagnostics for Model 0 and 1
+```{r}
+plot(model0)
+plot(model1)
+
+# More detailed residual diagnostics
+res0 <- residuals(model0)
+res1 <- residuals(model1)
+
+# QQ plots
+qqnorm(res0); qqline(res0)
+qqnorm(res1); qqline(res1)
+
+# Residuals vs. fitted
+plot(fitted(model0), res0)
+abline(h=0, lty=2)
+plot(fitted(model1), res1)
+abline(h=0, lty=2)
+
+#compare 2 models
+anova(model0, model1)
+AIC(model0, model1)
+BIC(model0, model1)
+```
+
+
+```{r}
+# Extract random effects
+re0 <- ranef(model0)
+re1 <- ranef(model1)
+
+# Plot random effects
+qqnorm(unlist(re0$SNUM))
+qqnorm(unlist(re1$SNUM))
+```
+
+
